@@ -1,0 +1,171 @@
+BSON:
+mongorestore --uri "mongodb+srv://<your username>:<your password>@<your cluster>.mongodb.net/sample_supplies"  --drop dump
+mongodump --uri "mongodb+srv://<your username>:<your password>@<your cluster>.mongodb.net/sample_supplies"
+
+JSON:
+mongoimport --uri="mongodb+srv://<your username>:<your password>@<your cluster>.mongodb.net/sample_supplies" --drop sales.json
+mongoexport --uri="mongodb+srv://<your username>:<your password>@<your cluster>.mongodb.net/sample_supplies" --collection=sales --out=sales.json
+
+//////////
+
+show dbs
+use sample_training
+show collections
+db.zips.find({"state": "NY"})
+
+it iterates through the cursor.
+
+db.zips.find({"state": "NY"}).count()
+db.zips.find({"state": "NY", "city": "ALBANY"})
+db.zips.find({"state": "NY", "city": "ALBANY"}).pretty()
+
+//////////
+
+db.inspections.findOne();  --get a random document from the collection:
+db.inspections.find({ "_id": 1 })
+
+db.inspections.insert({
+      "id" : "10021-2015-ENFO",
+      "certificate_number" : 9278806,
+      "business_name" : "ATLIXCO DELI GROCERY INC.",
+      "date" : "Feb 20 2015",
+      "result" : "No Violation Issued",
+      "sector" : "Cigarette Retail Dealer - 127",
+      "address" : {
+              "city" : "RIDGEWOOD",
+              "zip" : 11385,
+              "street" : "MENAHAN ST",
+              "number" : 1712
+         }
+  })
+
+db.inspections.find({"id" : "10021-2015-ENFO", "certificate_number" : 9278806}).pretty()
+
+//////////
+
+db.inspections.insert([ { "test": 1 }, { "test": 2 }, { "test": 3 } ])  --Insert multible test documents
+
+db.inspections.insert([{ "_id": 1, "test": 1 },{ "_id": 1, "test": 2 },
+                       { "_id": 3, "test": 3 }],{ "ordered": false })
+
+
+//////////
+
+db.zips.updateMany({ "city": "HUDSON" }, { "$inc": { "pop": 10 } })  --inc
+db.zips.updateOne({ "zip": "12534" }, { "$set": { "pop": 17630 } })  --set
+db.grades.updateOne({ "student_id": 250, "class_id": 339 },			 --push (to add an element to an array)
+                    { "$push": { "scores": { "type": "extra credit", "score": 100 }}})
+
+//////////
+
+db.inspections.deleteOne({ "test": 3 })
+db.inspections.deleteMany({ "test": 1 })
+db.inspection.drop()						--delete collection
+
+//////////
+
+db.trips.find({ "tripduration": { "$lte" : 70 },
+                "usertype": { "$ne": "Subscriber" } }).pretty()
+				
+db.trips.find({ "tripduration": { "$lte" : 70 },
+                "usertype": { "$eq": "Customer" }}).pretty()
+				
+db.trips.find({ "tripduration": { "$lte" : 70 },
+                "usertype": "Customer" }).pretty()  --implicit $eq
+				
+//////////
+
+$and / $or / $nor / $not
+
+db.routes.find({ "$and": [ { "$or" :[ { "dst_airport": "KZN" },
+                                    { "src_airport": "KZN" }
+                                  ] },
+                          { "$or" :[ { "airplane": "CR2" },
+                                     { "airplane": "A81" } ] }
+                         ]}).pretty()
+//////////
+
+db.trips.find({ "$expr": { "$eq": [ "$end station id", "$start station id"] }
+              }).count()
+			  
+db.trips.find({ "$expr": { "$and": [ { "$gt": [ "$tripduration", 1200 ]},
+                         { "$eq": [ "$end station id", "$start station id" ]}
+                       ]}}).count()
+
+//////////
+
+db.listingsAndReviews.find({ "amenities": {
+                                  "$size": 20, -- array field got the exact length of 20
+                                  "$all": [ "Internet", "Wifi",  "Kitchen", -- returns all elements of the array regardless of its order
+                                           "Heating", "Family/kid friendly",
+                                           "Washer", "Dryer", "Essentials",
+                                           "Shampoo", "Hangers",
+                                           "Hair dryer", "Iron",
+                                           "Laptop friendly workspace" ]
+                                         }
+                            }).pretty()
+							
+db.listingsAndReviews.find({ "amenities":
+        { "$size": 20, "$all": [ "Internet", "Wifi",  "Kitchen", "Heating",
+                                 "Family/kid friendly", "Washer", "Dryer",
+                                 "Essentials", "Shampoo", "Hangers",
+                                 "Hair dryer", "Iron",
+                                 "Laptop friendly workspace" ] } },
+                            {"price": 1, "address": 1}).pretty()     -- mit Projektion,    entweder alles 0 oder 1
+							
+db.grades.find({ "class_id": 431 },
+               { "scores": { "$elemMatch": { "score": { "$gt": 85 } } } --$elemMatch matches documents that contain an array field
+             }).pretty()
+
+//////////
+
+db.trips.findOne({ "start station location.type": "Point" })  --dottet syntax to go into element hirachy
+
+////////// -- Aggregate-Framework -> bring it in a pipe
+
+db.listingsAndReviews.aggregate([
+                                  { "$match": { "amenities": "Wifi" } },
+                                  { "$project": { "price": 1,
+                                                  "address": 1,
+                                                  "_id": 0 }}]).pretty()
+												 
+db.listingsAndReviews.aggregate([ { "$project": { "address": 1, "_id": 0 }},
+                                  { "$group": { "_id": "$address.country" }}])
+								  
+								 
+db.listingsAndReviews.aggregate([
+                                  { "$project": { "address": 1, "_id": 0 }},
+                                  { "$group": { "_id": "$address.country",
+                                                "count": { "$sum": 1 } } }
+                                ])
+
+//////////
+
+db.zips.find().sort({ "pop": 1 }).limit(1)
+db.zips.find({ "pop": 0 }).count()
+db.zips.find().sort({ "pop": -1 }).limit(1)
+db.zips.find().sort({ "pop": -1 }).limit(10)
+db.zips.find().sort({ "pop": 1, "city": -1 })
+db.zips.skip()....
+
+//////////
+
+db.trips.find({ "birth year": 1989 })
+db.trips.find({ "start station id": 476 }).sort( { "birth year": 1 } )
+db.trips.createIndex({ "birth year": 1 })
+db.trips.createIndex({ "start station id": 476, "birth year": 1 }) --compound Index
+
+////////// -- UPSERT for conditional updates
+
+db.iot.updateOne({ "sensor": r.sensor, "date": r.date,
+                   "valcount": { "$lt": 48 } },
+                         { "$push": { "readings": { "v": r.value, "t": r.time } },
+                        "$inc": { "valcount": 1, "total": r.value } },
+                 { "upsert": true })
+
+
+//////////
+
+
+
+//////////
